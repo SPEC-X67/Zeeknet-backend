@@ -1,10 +1,3 @@
-/**
- * Dependency Injection Types
- * 
- * This file contains all the symbols used for dependency injection.
- * Each symbol represents a unique identifier for a service in the DI container.
- */
-
 export const TYPES = {
   // ===== REPOSITORIES =====
   UserRepository: Symbol.for('UserRepository'),

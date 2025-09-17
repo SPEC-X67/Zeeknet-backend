@@ -37,14 +37,6 @@ export class GoogleLoginUseCase {
       });
     }
 
-    if (!user.isVerified) {
-      try {
-        const code = await this.otpService.generateAndStoreOtp(user.email);
-        const htmlContent = otpVerificationTemplate.html(code);
-        await this.mailerService.sendMail(user.email, otpVerificationTemplate.subject, htmlContent);
-      } catch (_err) {}
-    }
-
     const accessToken = this.tokenService.signAccess({ sub: user.id, role: user.role });
     const refreshToken = this.tokenService.signRefresh({ sub: user.id });
     const hashedRefresh = await this.passwordHasher.hash(refreshToken);

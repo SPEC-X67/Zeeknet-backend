@@ -1,6 +1,5 @@
 import { UserRole } from '../../../domain/enums/user-role.enum';
 
-// Infrastructure Service Interfaces
 export interface PasswordHasher {
   hash(plain: string): Promise<string>;
   compare(plain: string, hash: string): Promise<boolean>;

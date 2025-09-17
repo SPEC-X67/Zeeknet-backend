@@ -28,6 +28,12 @@ export class LoginUserUseCase {
       throw new AuthenticationError('Invalid credentials');
     }
 
+    if (!user.isVerified) {
+      const code = await this.otpService.generateAndStoreOtp(user.email);
+      const htmlContent = otpVerificationTemplate.html(code);
+      await this.mailerService.sendMail(user.email, otpVerificationTemplate.subject, htmlContent);
+    }
+
     if (user.isBlocked) {
       throw new AuthorizationError('User is blocked');
     }
@@ -39,17 +45,6 @@ export class LoginUserUseCase {
     const isPasswordValid = await this.passwordHasher.compare(password, user.password);
     if (!isPasswordValid) {
       throw new AuthenticationError('Invalid credentials');
-    }
-
-    // If not verified, send OTP email but do not block login response shape
-    if (!user.isVerified) {
-      try {
-        const code = await this.otpService.generateAndStoreOtp(email);
-        const htmlContent = otpVerificationTemplate.html(code);
-        await this.mailerService.sendMail(email, otpVerificationTemplate.subject, htmlContent);
-      } catch (_err) {
-        // best-effort: do not fail login if email sending fails
-      }
     }
 
     const accessToken = this.tokenService.signAccess({ sub: user.id, role: user.role });

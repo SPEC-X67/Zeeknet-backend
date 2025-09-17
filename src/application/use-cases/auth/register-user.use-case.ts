@@ -50,12 +50,6 @@ export class RegisterUserUseCase {
     await this.userRepository.updateRefreshToken(user.id, hashedRefresh);
 
     try {
-      const code = await this.otpService.generateAndStoreOtp(email);
-      const htmlContent = otpVerificationTemplate.html(code);
-      await this.mailerService.sendMail(email, otpVerificationTemplate.subject, htmlContent);
-    } catch (_err) {}
-
-    try {
       const dashboardLink = `${process.env.FRONTEND_URL}/dashboard`;
       const htmlContent = welcomeTemplate.html(name || 'User', dashboardLink);
       await this.mailerService.sendMail(email, welcomeTemplate.subject, htmlContent);
