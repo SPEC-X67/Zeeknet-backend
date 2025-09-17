@@ -242,23 +242,3 @@ COPY dist ./dist
 EXPOSE 4000
 CMD ["npm", "start"]
 ```
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run tests and linting
-5. Submit a pull request
-
-## 📄 License
-
-This project is licensed under the ISC License.
-
-## 🆘 Support
-
-For support and questions, please contact the development team or create an issue in the repository.
-
----
-
-**Note**: Make sure to keep your environment variables secure and never commit them to version control.

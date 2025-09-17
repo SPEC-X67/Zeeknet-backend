@@ -1,20 +1,9 @@
 import {
   CompanyProfile,
   CompanyContact,
-  OfficeLocation,
-  CompanyTechStack,
-  PerksAndBenefits,
-  WorkplacePicture,
-} from '../entities/company.entity';
-
-export interface CompanyVerification {
-  id: string;
-  companyId: string;
-  taxId: string;
-  bsLicenseUrl: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
+  CompanyLocation,
+  CompanyVerification,
+} from '../entities/company-profile.entity';
 
 export interface ICompanyRepository {
   // Profile operations
@@ -51,36 +40,11 @@ export interface ICompanyRepository {
   ): Promise<CompanyContact>;
 
   // Office location operations
-  createOfficeLocation(
-    location: Omit<OfficeLocation, 'id' | 'createdAt' | 'updatedAt'>,
-  ): Promise<OfficeLocation>;
-  getOfficeLocationsByCompanyId(companyId: string): Promise<OfficeLocation[]>;
-  deleteOfficeLocations(companyId: string): Promise<void>;
-
-  // Tech stack operations
-  createTechStack(
-    techStack: Omit<CompanyTechStack, 'id' | 'createdAt' | 'updatedAt'>,
-  ): Promise<CompanyTechStack>;
-  getTechStacksByCompanyId(companyId: string): Promise<CompanyTechStack[]>;
-  deleteTechStacks(companyId: string): Promise<void>;
-
-  // Perks and benefits operations
-  createPerksAndBenefits(
-    perk: Omit<PerksAndBenefits, 'id' | 'createdAt' | 'updatedAt'>,
-  ): Promise<PerksAndBenefits>;
-  getPerksAndBenefitsByCompanyId(
-    companyId: string,
-  ): Promise<PerksAndBenefits[]>;
-  deletePerksAndBenefits(companyId: string): Promise<void>;
-
-  // Workplace pictures operations
-  createWorkplacePicture(
-    picture: Omit<WorkplacePicture, 'id' | 'createdAt' | 'updatedAt'>,
-  ): Promise<WorkplacePicture>;
-  getWorkplacePicturesByCompanyId(
-    companyId: string,
-  ): Promise<WorkplacePicture[]>;
-  deleteWorkplacePictures(companyId: string): Promise<void>;
+  createLocation(
+    location: Omit<CompanyLocation, 'id' | 'createdAt' | 'updatedAt'>,
+  ): Promise<CompanyLocation>;
+  getLocationsByCompanyId(companyId: string): Promise<CompanyLocation[]>;
+  deleteLocations(companyId: string): Promise<void>;
 
   // Company listing operations
   getAllCompanies(options: {

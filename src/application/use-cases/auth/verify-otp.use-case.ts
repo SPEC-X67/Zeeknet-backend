@@ -1,15 +1,27 @@
 import { injectable, inject } from 'inversify';
-import { IAuthService } from '../../interfaces/services/auth.service.interface';
 import { TYPES } from '../../../infrastructure/di/types';
+import { OtpService } from '../../interfaces/infrastructure';
+import { IUserRepository } from '../../../domain/repositories';
+import { ValidationError, NotFoundError } from '../../../domain/errors/errors';
 
 @injectable()
 export class VerifyOtpUseCase {
   constructor(
-    @inject(TYPES.AuthService)
-    private readonly authService: IAuthService,
+    @inject(TYPES.OtpService)
+    private readonly otpService: OtpService,
+    @inject(TYPES.UserRepository)
+    private readonly userRepository: IUserRepository,
   ) {}
 
   async execute(email: string, code: string): Promise<void> {
-    return this.authService.verifyOtp(email, code);
+    const user = await this.userRepository.findByEmail(email);
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+    const isValid = await this.otpService.verifyOtp(email, code);
+    if (!isValid) {
+      throw new ValidationError('Invalid or expired OTP code');
+    }
+    await this.userRepository.updateVerificationStatus(email, true);
   }
 }

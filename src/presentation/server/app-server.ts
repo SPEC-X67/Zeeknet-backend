@@ -5,20 +5,29 @@ import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import http from 'http';
 import mongoose from 'mongoose';
+import { injectable } from 'inversify';
+
+// Infrastructure imports
 import { connectToDatabase } from '../../infrastructure/database/mongodb/connection/mongoose';
+import { connectRedis } from '../../infrastructure/database/redis/connection/redis';
+import { env } from '../../infrastructure/config/env';
+
+// Presentation imports
 import { createAuthRouter } from '../routes/auth.routes';
 import { createAdminRouter } from '../routes/admin.routes';
 import { createCompanyRouter } from '../routes/company.routes';
 import { authenticateToken } from '../middleware/auth.middleware';
 import { errorHandler } from '../middleware/error-handler';
-import { env } from '../../infrastructure/config/env';
-import { injectable } from 'inversify';
+
+// Controllers
 import { AuthController } from '../controllers/auth.controller';
 import { AdminController } from '../controllers/admin.controller';
 import { CompanyController } from '../controllers/company.controller';
 import { OtpController } from '../controllers/otp.controller';
+
+// DI imports
 import { container } from '../../infrastructure/di/container';
-import { connectRedis } from '../../infrastructure/database/redis/connection/redis';
+import { TYPES } from '../../infrastructure/di/types';
 
 @injectable()
 export class AppServer {
@@ -38,58 +47,101 @@ export class AppServer {
   }
 
   private configureMiddlewares(): void {
+    // Security middleware
+    this.app.use(helmet());
+    
+    // CORS configuration
     this.app.use(cors({ 
       origin: env.FRONTEND_URL || 'http://localhost:5173', 
       credentials: true, 
     }));
-    this.app.use(helmet());
-    this.app.use(express.json());
+    
+    // Body parsing middleware
+    this.app.use(express.json({ limit: '10mb' }));
     this.app.use(cookieParser());
+    
+    // Logging middleware
     this.app.use(morgan('combined'));
   }
 
   private configureRoutes(): void {
-    const authController = container.get<AuthController>(AuthController);
-    const adminController = container.get<AdminController>(AdminController);
-    const companyController = container.get<CompanyController>(CompanyController);
-    const otpController = container.get<OtpController>(OtpController);
+    // Get controllers from DI container
+    const authController = container.get<AuthController>(TYPES.AuthController);
+    const adminController = container.get<AdminController>(TYPES.AdminController);
+    const companyController = container.get<CompanyController>(TYPES.CompanyController);
+    const otpController = container.get<OtpController>(TYPES.OtpController);
 
-    this.app.get('/health', (req, res) => res.json({ ok: true }));
+    // Health check endpoint
+    this.app.get('/health', (req, res) => res.json({ 
+      status: 'OK', 
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+    }));
+
+    // Protected home route
     this.app.get('/home', authenticateToken, (req, res) =>
-      res.json({ message: 'Welcome home' }),
+      res.json({ message: 'Welcome to ZeekNet Job Portal API' }),
     );
+
+    // API routes
     this.app.use('/api/auth', createAuthRouter(authController, otpController));
     this.app.use('/api/admin', createAdminRouter(adminController));
     this.app.use('/api/company', createCompanyRouter(companyController));
+
+    // Error handling middleware (must be last)
     this.app.use(errorHandler);
   }
 
   public async connectDatabase(): Promise<void> {
-    await connectToDatabase(env.MONGO_URI as string).then(() => {
-      console.log('Connected to MongoDB');
-    });
-    await connectRedis().then(() => {
-      console.log('Connected to Redis');
-    });
+    try {
+      await connectToDatabase(env.MONGO_URI as string);
+      console.log('✅ Connected to MongoDB');
+    } catch (error) {
+      console.error('❌ MongoDB connection failed:', error);
+      throw error;
+    }
+
+    try {
+      await connectRedis();
+      console.log('✅ Connected to Redis');
+    } catch (error) {
+      console.error('❌ Redis connection failed:', error);
+      throw error;
+    }
   }
 
   public start(): void {
-    if (this.httpServer) return;
+    if (this.httpServer) {
+      console.log('⚠️ Server is already running');
+      return;
+    }
+    
     this.httpServer = this.app.listen(this.port, () => {
-      console.log(`Server is running on port ${this.port}`);
+      console.log(`🌐 Server running on port ${this.port}`);
+      console.log(`📊 Health check: http://localhost:${this.port}/health`);
     });
   }
 
   public async stop(): Promise<void> {
-    const server = this.httpServer;
-    if (server) {
+    console.log('🛑 Stopping server...');
+    
+    // Close HTTP server
+    if (this.httpServer) {
       await new Promise<void>((resolve, reject) => {
-        server.close((err) => (err ? reject(err) : resolve()));
+        this.httpServer!.close((err) => {
+          if (err) reject(err);
+          else resolve();
+        });
       });
       this.httpServer = null;
+      console.log('✅ HTTP server closed');
     }
+
+    // Close MongoDB connection
     if (mongoose.connection.readyState !== 0) {
       await mongoose.connection.close();
+      console.log('✅ MongoDB connection closed');
     }
   }
 }
+ 

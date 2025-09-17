@@ -1,10 +1,11 @@
 import { z } from 'zod';
 import { UserRole } from '../../../domain/enums/user-role.enum';
+import { commonValidations, fieldValidations } from '../../../shared/validation/common';
 
 export const RegisterDto = z.object({
-  name: z.string().min(1),
-  email: z.string().email(),
-  password: z.string().min(6),
+  name: fieldValidations.personName,
+  email: commonValidations.email,
+  password: commonValidations.password,
   role: z.nativeEnum(UserRole).optional().default(UserRole.SEEKER),
 });
 

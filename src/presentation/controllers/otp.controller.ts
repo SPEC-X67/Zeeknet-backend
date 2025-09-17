@@ -44,12 +44,12 @@ export class OtpController {
       let code: string;
       try {
         code = await this.otpService.generateAndStoreOtp(parsed.data.email);
-      } catch (error: any) {
-        if (error.message.includes('Please wait before requesting another OTP')) {
+      } catch (error: unknown) {
+        if (error instanceof Error && error.message.includes('Please wait before requesting another OTP')) {
           res.status(429).json({ 
             success: false,
             message: 'Please wait 30 seconds before requesting another OTP',
-            error: 'RATE_LIMITED'
+            error: 'RATE_LIMITED',
           });
           return;
         }

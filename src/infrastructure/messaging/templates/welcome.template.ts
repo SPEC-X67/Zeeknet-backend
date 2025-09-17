@@ -1,6 +1,6 @@
 export const welcomeTemplate = {
-    subject: 'Welcome to ZeekNet Job Portal',
-    html: (name: string, dashboardLink: string) => `
+  subject: 'Welcome to ZeekNet Job Portal',
+  html: (name: string, dashboardLink: string) => `
       <table style="width: 100%; max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif; border-collapse: collapse;">
         <tr>
           <td style="background-color: white; padding: 30px; text-align: center;">
@@ -23,5 +23,5 @@ export const welcomeTemplate = {
           </td>
         </tr>
       </table>
-    `
-  };
+    `,
+};

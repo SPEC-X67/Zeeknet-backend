@@ -1,18 +1,18 @@
 import { injectable, inject } from 'inversify';
-import { ICompanyService } from '../../interfaces/services/company.service.interface';
 import { TYPES } from '../../../infrastructure/di/types';
+import { ICompanyRepository } from '../../../domain/repositories';
 
 @injectable()
 export class VerifyCompanyUseCase {
   constructor(
-    @inject(TYPES.CompanyService)
-    private readonly companyService: ICompanyService,
+    @inject(TYPES.CompanyRepository)
+    private readonly companyRepository: ICompanyRepository,
   ) {}
 
   async execute(companyId: string, isVerified: boolean): Promise<void> {
-    return this.companyService.verifyCompany({
+    await this.companyRepository.updateVerificationStatus(
       companyId,
-      isVerified: isVerified ? 'verified' : 'rejected',
-    });
+      isVerified ? 'verified' : 'rejected',
+    );
   }
 }

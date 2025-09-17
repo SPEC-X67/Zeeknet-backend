@@ -4,6 +4,12 @@ import { User } from '../../../../domain/entities';
 import { UserRole } from '../../../../domain/enums/user-role.enum';
 import { UserModel, UserDocument } from '../models/user.model';
 
+interface UserQuery {
+  $or?: Array<{ [key: string]: { $regex: string; $options: string } }>;
+  role?: UserRole;
+  isBlocked?: boolean;
+}
+
 @injectable()
 export class MongoUserRepository implements IUserRepository {
   async save(
@@ -51,7 +57,7 @@ export class MongoUserRepository implements IUserRepository {
     const { page, limit, search, role, isBlocked } = options;
     const skip = (page - 1) * limit;
 
-    const filter: any = {};
+    const filter: UserQuery = {};
     if (search) {
       filter.$or = [
         { email: { $regex: search, $options: 'i' } },

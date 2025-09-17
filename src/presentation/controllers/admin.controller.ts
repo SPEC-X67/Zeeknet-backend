@@ -7,7 +7,6 @@ import {
   GetAllCompaniesDto,
   CompanyVerificationDto,
 } from '../../application/dto/admin';
-import { ValidationError } from '../../domain/errors/errors';
 import {
   GetAllUsersUseCase,
   BlockUserUseCase,
@@ -15,10 +14,11 @@ import {
   GetAllCompaniesUseCase,
   VerifyCompanyUseCase,
 } from '../../application/use-cases';
-import { ICompanyService } from '../../application/interfaces/services/company.service.interface';
+import { ICompanyRepository } from '../../domain/repositories';
+import { BaseController } from '../../shared';
 
 @injectable()
-export class AdminController {
+export class AdminController extends BaseController {
   constructor(
     @inject(TYPES.GetAllUsersUseCase)
     private readonly getAllUsersUseCase: GetAllUsersUseCase,
@@ -30,9 +30,11 @@ export class AdminController {
     private readonly getAllCompaniesUseCase: GetAllCompaniesUseCase,
     @inject(TYPES.VerifyCompanyUseCase)
     private readonly verifyCompanyUseCase: VerifyCompanyUseCase,
-    @inject(TYPES.CompanyService)
-    private readonly companyService: ICompanyService,
-  ) {}
+    @inject(TYPES.CompanyRepository)
+    private readonly companyRepository: ICompanyRepository,
+  ) {
+    super();
+  }
 
   getAllUsers = async (
     req: Request,
@@ -41,14 +43,14 @@ export class AdminController {
   ): Promise<void> => {
     const parsed = GetAllUsersDto.safeParse(req.query);
     if (!parsed.success) {
-      return next(new ValidationError('Invalid query parameters'));
+      return this.handleValidationError('Invalid query parameters', next);
     }
 
     try {
       const result = await this.getAllUsersUseCase.execute(parsed.data);
-      res.json(result);
+      this.sendSuccessResponse(res, 'Users retrieved successfully', result);
     } catch (error) {
-      next(error);
+      this.handleAsyncError(error, next);
     }
   };
 
@@ -59,7 +61,7 @@ export class AdminController {
   ): Promise<void> => {
     const parsed = BlockUserDto.safeParse(req.body);
     if (!parsed.success) {
-      return next(new ValidationError('Invalid block user data'));
+      return this.handleValidationError('Invalid block user data', next);
     }
 
     try {
@@ -67,11 +69,10 @@ export class AdminController {
         parsed.data.userId,
         parsed.data.isBlocked,
       );
-      res.json({
-        message: `User ${parsed.data.isBlocked ? 'blocked' : 'unblocked'} successfully`,
-      });
+      const message = `User ${parsed.data.isBlocked ? 'blocked' : 'unblocked'} successfully`;
+      this.sendSuccessResponse(res, message, null);
     } catch (error) {
-      next(error);
+      this.handleAsyncError(error, next);
     }
   };
 
@@ -82,14 +83,14 @@ export class AdminController {
   ): Promise<void> => {
     const { userId } = req.params;
     if (!userId) {
-      return next(new ValidationError('User ID is required'));
+      return this.handleValidationError('User ID is required', next);
     }
 
     try {
       const user = await this.getUserByIdUseCase.execute(userId);
-      res.json(user);
+      this.sendSuccessResponse(res, 'User retrieved successfully', user);
     } catch (error) {
-      next(error);
+      this.handleAsyncError(error, next);
     }
   };
 
@@ -100,24 +101,18 @@ export class AdminController {
   ): Promise<void> => {
     const parsed = GetAllCompaniesDto.safeParse(req.query);
     if (!parsed.success) {
-      return next(new ValidationError('Invalid query parameters'));
+      return this.handleValidationError('Invalid query parameters', next);
     }
 
     try {
       const result = await this.getAllCompaniesUseCase.execute(parsed.data);
-      res.json({
+      const responseData = {
         companies: result.companies,
-        pagination: {
-          page: parseInt(parsed.data.page),
-          limit: parseInt(parsed.data.limit),
-          total: result.pagination.total,
-          totalPages: result.pagination.totalPages,
-          hasNext: result.pagination.hasNext,
-          hasPrev: result.pagination.hasPrev,
-        },
-      });
+        pagination: result.pagination,
+      };
+      this.sendSuccessResponse(res, 'Companies retrieved successfully', responseData);
     } catch (error) {
-      next(error);
+      this.handleAsyncError(error, next);
     }
   };
 
@@ -134,19 +129,13 @@ export class AdminController {
       };
 
       const result = await this.getAllCompaniesUseCase.execute(options);
-      res.json({
+      const responseData = {
         companies: result.companies,
-        pagination: {
-          page: options.page,
-          limit: options.limit,
-          total: result.pagination.total,
-          totalPages: result.pagination.totalPages,
-          hasNext: result.pagination.hasNext,
-          hasPrev: result.pagination.hasPrev,
-        },
-      });
+        pagination: result.pagination,
+      };
+      this.sendSuccessResponse(res, 'Pending companies retrieved successfully', responseData);
     } catch (error) {
-      next(error);
+      this.handleAsyncError(error, next);
     }
   };
 
@@ -157,18 +146,17 @@ export class AdminController {
   ): Promise<void> => {
     const { companyId } = req.params;
     if (!companyId) {
-      return next(new ValidationError('Company ID is required'));
+      return this.handleValidationError('Company ID is required', next);
     }
 
     try {
-      const company =
-        await this.companyService.getCompanyProfileById(companyId);
+      const company = await this.companyRepository.getProfileById(companyId);
       if (!company) {
-        return next(new ValidationError('Company not found'));
+        return this.sendNotFoundResponse(res, 'Company not found');
       }
-      res.json(company);
+      this.sendSuccessResponse(res, 'Company retrieved successfully', company);
     } catch (error) {
-      next(error);
+      this.handleAsyncError(error, next);
     }
   };
 
@@ -179,7 +167,7 @@ export class AdminController {
   ): Promise<void> => {
     const parsed = CompanyVerificationDto.safeParse(req.body);
     if (!parsed.success) {
-      return next(new ValidationError('Invalid verification data'));
+      return this.handleValidationError('Invalid verification data', next);
     }
 
     try {
@@ -188,11 +176,10 @@ export class AdminController {
         parsed.data.isVerified === 'verified',
       );
 
-      res.json({
-        message: `Company ${parsed.data.isVerified} successfully`,
-      });
+      const message = `Company ${parsed.data.isVerified} successfully`;
+      this.sendSuccessResponse(res, message, null);
     } catch (error) {
-      next(error);
+      this.handleAsyncError(error, next);
     }
   };
 
@@ -204,16 +191,15 @@ export class AdminController {
     const { companyId, isBlocked } = req.body;
     
     if (!companyId || typeof isBlocked !== 'boolean') {
-      return next(new ValidationError('Company ID and isBlocked status are required'));
+      return this.handleValidationError('Company ID and isBlocked status are required', next);
     }
 
     try {
-      await this.companyService.blockCompany(companyId, isBlocked);
-      res.json({
-        message: `Company ${isBlocked ? 'blocked' : 'unblocked'} successfully`,
-      });
+      await this.companyRepository.updateProfile(companyId, { isBlocked });
+      const message = `Company ${isBlocked ? 'blocked' : 'unblocked'} successfully`;
+      this.sendSuccessResponse(res, message, null);
     } catch (error) {
-      next(error);
+      this.handleAsyncError(error, next);
     }
   };
 }

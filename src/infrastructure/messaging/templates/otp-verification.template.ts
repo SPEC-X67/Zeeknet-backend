@@ -1,6 +1,6 @@
 export const otpVerificationTemplate = {
-    subject: 'Verify Your Email - ZeekNet Job Portal',
-    html: (code: string) => `
+  subject: 'Verify Your Email - ZeekNet Job Portal',
+  html: (code: string) => `
       <table style="width: 100%; max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif; border-collapse: collapse;">
         <tr>
           <td style="background-color: white; padding: 30px; text-align: center;">
@@ -23,5 +23,5 @@ export const otpVerificationTemplate = {
           </td>
         </tr>
       </table>
-    `
-  };
+    `,
+};

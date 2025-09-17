@@ -5,13 +5,21 @@ import {
 } from '../../domain/errors/errors';
 import { UserRole } from '../../domain/enums/user-role.enum';
 
+interface AuthenticatedRequest extends Request {
+  user?: {
+    id: string;
+    email: string;
+    role: UserRole;
+  };
+}
+
 export const requireAdmin = (
-  req: Request,
+  req: AuthenticatedRequest,
   res: Response,
   next: NextFunction,
 ): void => {
   try {
-    const user = (req as any).user;
+    const user = req.user;
     if (!user) {
       throw new AuthenticationError('Authentication required');
     }

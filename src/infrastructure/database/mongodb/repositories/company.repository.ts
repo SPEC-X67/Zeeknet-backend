@@ -1,20 +1,73 @@
 import { injectable } from 'inversify';
-import { ICompanyRepository, CompanyVerification } from '../../../../domain/repositories';
+import { ICompanyRepository } from '../../../../domain/repositories';
 import {
   CompanyProfile,
   CompanyContact,
-  OfficeLocation,
-  CompanyTechStack,
-  PerksAndBenefits,
-  WorkplacePicture,
+  CompanyLocation,
+  CompanyVerification,
 } from '../../../../domain/entities';
 import { CompanyProfileModel } from '../models/company-profile.model';
 import { CompanyContactModel } from '../models/company-contact.model';
 import { OfficeLocationModel } from '../models/office-location.model';
-import { CompanyTechStackModel } from '../models/company-tech-stack.model';
-import { PerksAndBenefitsModel } from '../models/perks-and-benefits.model';
-import { WorkplacePictureModel } from '../models/workplace-pictures.model';
 import { CompanyVerificationModel } from '../models/company-verification.model';
+import { Document } from 'mongoose';
+
+// Type definitions for MongoDB documents
+interface CompanyProfileDocument extends Document {
+  _id: unknown;
+  userId: string;
+  companyName: string;
+  logo: string;
+  banner: string;
+  websiteLink: string;
+  employeeCount: number;
+  industry: string;
+  organisation: string;
+  aboutUs: string;
+  isVerified: 'pending' | 'rejected' | 'verified';
+  isBlocked: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface CompanyContactDocument extends Document {
+  _id: unknown;
+  companyId: string;
+  email: string;
+  phone: string;
+  twitterLink?: string;
+  facebookLink?: string;
+  linkedin?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface CompanyLocationDocument extends Document {
+  _id: unknown;
+  companyId: string;
+  location: string;
+  officeName: string;
+  address: string;
+  isHeadquarters: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface CompanyVerificationDocument extends Document {
+  _id: unknown;
+  companyId: string;
+  taxId: string;
+  businessLicenseUrl?: string; // Make optional to match actual model
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface CompanyQuery {
+  $or?: Array<{ [key: string]: { $regex: string; $options: string } }>;
+  industry?: string;
+  isVerified?: 'pending' | 'rejected' | 'verified';
+  isBlocked?: boolean;
+}
 
 @injectable()
 export class MongoCompanyRepository implements ICompanyRepository {
@@ -35,17 +88,17 @@ export class MongoCompanyRepository implements ICompanyRepository {
     },
   ): Promise<CompanyProfile> {
     const created = await CompanyProfileModel.create(profile);
-    return this.mapToProfile(created);
+    return this.mapToProfile(created as CompanyProfileDocument);
   }
 
   async getProfileByUserId(userId: string): Promise<CompanyProfile | null> {
     const doc = await CompanyProfileModel.findOne({ userId }).exec();
-    return doc ? this.mapToProfile(doc) : null;
+    return doc ? this.mapToProfile(doc as CompanyProfileDocument) : null;
   }
 
   async getProfileById(profileId: string): Promise<CompanyProfile | null> {
     const doc = await CompanyProfileModel.findById(profileId).exec();
-    return doc ? this.mapToProfile(doc) : null;
+    return doc ? this.mapToProfile(doc as CompanyProfileDocument) : null;
   }
 
   async updateProfile(
@@ -58,7 +111,7 @@ export class MongoCompanyRepository implements ICompanyRepository {
       { new: true },
     ).exec();
     if (!updated) throw new Error('Profile not found');
-    return this.mapToProfile(updated);
+    return this.mapToProfile(updated as CompanyProfileDocument);
   }
 
   // Contact operations
@@ -66,14 +119,14 @@ export class MongoCompanyRepository implements ICompanyRepository {
     contact: Omit<CompanyContact, 'id' | 'createdAt' | 'updatedAt'>,
   ): Promise<CompanyContact> {
     const created = await CompanyContactModel.create(contact);
-    return this.mapToContact(created);
+    return this.mapToContact(created as CompanyContactDocument);
   }
 
   async getContactByCompanyId(
     companyId: string,
   ): Promise<CompanyContact | null> {
     const doc = await CompanyContactModel.findOne({ companyId }).exec();
-    return doc ? this.mapToContact(doc) : null;
+    return doc ? this.mapToContact(doc as CompanyContactDocument) : null;
   }
 
   async updateContact(
@@ -86,83 +139,26 @@ export class MongoCompanyRepository implements ICompanyRepository {
       { new: true },
     ).exec();
     if (!updated) throw new Error('Contact not found');
-    return this.mapToContact(updated);
+    return this.mapToContact(updated as CompanyContactDocument);
   }
 
-  // Office location operations
-  async createOfficeLocation(
-    location: Omit<OfficeLocation, 'id' | 'createdAt' | 'updatedAt'>,
-  ): Promise<OfficeLocation> {
+  // Location operations
+  async createLocation(
+    location: Omit<CompanyLocation, 'id' | 'createdAt' | 'updatedAt'>,
+  ): Promise<CompanyLocation> {
     const created = await OfficeLocationModel.create(location);
-    return this.mapToOfficeLocation(created);
+    return this.mapToLocation(created as CompanyLocationDocument);
   }
 
-  async getOfficeLocationsByCompanyId(
+  async getLocationsByCompanyId(
     companyId: string,
-  ): Promise<OfficeLocation[]> {
+  ): Promise<CompanyLocation[]> {
     const docs = await OfficeLocationModel.find({ companyId }).exec();
-    return docs.map((doc) => this.mapToOfficeLocation(doc));
+    return docs.map((doc) => this.mapToLocation(doc as CompanyLocationDocument));
   }
 
-  async deleteOfficeLocations(companyId: string): Promise<void> {
+  async deleteLocations(companyId: string): Promise<void> {
     await OfficeLocationModel.deleteMany({ companyId }).exec();
-  }
-
-  // Tech stack operations
-  async createTechStack(
-    techStack: Omit<CompanyTechStack, 'id' | 'createdAt' | 'updatedAt'>,
-  ): Promise<CompanyTechStack> {
-    const created = await CompanyTechStackModel.create(techStack);
-    return this.mapToTechStack(created);
-  }
-
-  async getTechStacksByCompanyId(
-    companyId: string,
-  ): Promise<CompanyTechStack[]> {
-    const docs = await CompanyTechStackModel.find({ companyId }).exec();
-    return docs.map((doc) => this.mapToTechStack(doc));
-  }
-
-  async deleteTechStacks(companyId: string): Promise<void> {
-    await CompanyTechStackModel.deleteMany({ companyId }).exec();
-  }
-
-  // Perks and benefits operations
-  async createPerksAndBenefits(
-    perk: Omit<PerksAndBenefits, 'id' | 'createdAt' | 'updatedAt'>,
-  ): Promise<PerksAndBenefits> {
-    const created = await PerksAndBenefitsModel.create(perk);
-    return this.mapToPerksAndBenefits(created);
-  }
-
-  async getPerksAndBenefitsByCompanyId(
-    companyId: string,
-  ): Promise<PerksAndBenefits[]> {
-    const docs = await PerksAndBenefitsModel.find({ companyId }).exec();
-    return docs.map((doc) => this.mapToPerksAndBenefits(doc));
-  }
-
-  async deletePerksAndBenefits(companyId: string): Promise<void> {
-    await PerksAndBenefitsModel.deleteMany({ companyId }).exec();
-  }
-
-  // Workplace pictures operations
-  async createWorkplacePicture(
-    picture: Omit<WorkplacePicture, 'id' | 'createdAt' | 'updatedAt'>,
-  ): Promise<WorkplacePicture> {
-    const created = await WorkplacePictureModel.create(picture);
-    return this.mapToWorkplacePicture(created);
-  }
-
-  async getWorkplacePicturesByCompanyId(
-    companyId: string,
-  ): Promise<WorkplacePicture[]> {
-    const docs = await WorkplacePictureModel.find({ companyId }).exec();
-    return docs.map((doc) => this.mapToWorkplacePicture(doc));
-  }
-
-  async deleteWorkplacePictures(companyId: string): Promise<void> {
-    await WorkplacePictureModel.deleteMany({ companyId }).exec();
   }
 
   // Company listing operations
@@ -175,132 +171,62 @@ export class MongoCompanyRepository implements ICompanyRepository {
     isBlocked?: boolean;
   }): Promise<{ companies: CompanyProfile[]; total: number }> {
     const { page, limit, search, industry, isVerified, isBlocked } = options;
-    const skip = (page - 1) * limit;
-
-    const filter: any = {};
+    
+    const query: CompanyQuery = {};
+    
     if (search) {
-      filter.$or = [
+      query.$or = [
         { companyName: { $regex: search, $options: 'i' } },
         { industry: { $regex: search, $options: 'i' } },
+        { organisation: { $regex: search, $options: 'i' } },
       ];
     }
+    
     if (industry) {
-      filter.industry = industry;
+      query.industry = industry;
     }
-    if (isVerified) {
-      filter.isVerified = isVerified;
+    
+    if (isVerified !== undefined) {
+      query.isVerified = isVerified;
     }
+    
     if (isBlocked !== undefined) {
-      filter.isBlocked = isBlocked;
+      query.isBlocked = isBlocked;
     }
 
+    const skip = (page - 1) * limit;
+    
     const [companies, total] = await Promise.all([
-      CompanyProfileModel.find(filter)
+      CompanyProfileModel.find(query)
         .skip(skip)
         .limit(limit)
         .sort({ createdAt: -1 })
         .exec(),
-      CompanyProfileModel.countDocuments(filter),
+      CompanyProfileModel.countDocuments(query).exec(),
     ]);
 
     return {
-      companies: companies.map((company) => this.mapToProfile(company)),
+      companies: companies.map((doc) => this.mapToProfile(doc as CompanyProfileDocument)),
       total,
     };
-  }
-
-  // Verification operations
-
-  // Mapping methods
-  private mapToProfile(doc: any): CompanyProfile {
-    return new CompanyProfile(
-      String(doc._id),
-      doc.userId,
-      doc.companyName,
-      doc.logo,
-      doc.banner,
-      doc.websiteLink,
-      doc.employeeCount,
-      doc.industry,
-      doc.organisation,
-      doc.aboutUs,
-      doc.isVerified,
-      doc.isBlocked,
-      doc.createdAt,
-      doc.updatedAt,
-    );
-  }
-
-  private mapToContact(doc: any): CompanyContact {
-    return new CompanyContact(
-      String(doc._id),
-      doc.companyId,
-      doc.email,
-      doc.phone,
-      doc.twitterLink,
-      doc.facebookLink,
-      doc.linkedin,
-      doc.createdAt,
-      doc.updatedAt,
-    );
-  }
-
-  private mapToOfficeLocation(doc: any): OfficeLocation {
-    return new OfficeLocation(
-      String(doc._id),
-      doc.companyId,
-      doc.location,
-      doc.officeName,
-      doc.address,
-      doc.isHeadquarters,
-      doc.createdAt,
-      doc.updatedAt,
-    );
-  }
-
-  private mapToTechStack(doc: any): CompanyTechStack {
-    return new CompanyTechStack(
-      String(doc._id),
-      doc.companyId,
-      doc.techStack,
-      doc.createdAt,
-      doc.updatedAt,
-    );
-  }
-
-  private mapToPerksAndBenefits(doc: any): PerksAndBenefits {
-    return new PerksAndBenefits(
-      String(doc._id),
-      doc.companyId,
-      doc.perk,
-      doc.description,
-      doc.createdAt,
-      doc.updatedAt,
-    );
-  }
-
-  private mapToWorkplacePicture(doc: any): WorkplacePicture {
-    return new WorkplacePicture(
-      String(doc._id),
-      doc.companyId,
-      doc.pictureUrl,
-      doc.caption,
-      doc.createdAt,
-      doc.updatedAt,
-    );
   }
 
   // Verification operations
   async createVerification(
     verification: Omit<CompanyVerification, 'id' | 'createdAt' | 'updatedAt'>,
   ): Promise<CompanyVerification> {
-    const created = await CompanyVerificationModel.create(verification);
-    return this.mapToVerification(created);
+    const created = await CompanyVerificationModel.create({
+      ...verification,
+      businessLicenseUrl: verification.businessLicenseUrl || '',
+    });
+    return this.mapToVerification(created as unknown as CompanyVerificationDocument);
   }
 
-  async getVerificationByCompanyId(companyId: string): Promise<CompanyVerification | null> {
+  async getVerificationByCompanyId(
+    companyId: string,
+  ): Promise<CompanyVerification | null> {
     const doc = await CompanyVerificationModel.findOne({ companyId }).exec();
-    return doc ? this.mapToVerification(doc) : null;
+    return doc ? this.mapToVerification(doc as unknown as CompanyVerificationDocument) : null;
   }
 
   async updateVerificationStatus(
@@ -308,17 +234,64 @@ export class MongoCompanyRepository implements ICompanyRepository {
     isVerified: 'pending' | 'rejected' | 'verified',
   ): Promise<void> {
     await CompanyProfileModel.findOneAndUpdate(
-      { _id: companyId },
+      { userId: companyId },
       { isVerified },
     ).exec();
   }
 
-  private mapToVerification(doc: any): CompanyVerification {
+  // Mapping functions
+  private mapToProfile(doc: CompanyProfileDocument): CompanyProfile {
+    return {
+      id: String(doc._id),
+      userId: doc.userId,
+      companyName: doc.companyName,
+      logo: doc.logo,
+      banner: doc.banner,
+      websiteLink: doc.websiteLink,
+      employeeCount: doc.employeeCount,
+      industry: doc.industry,
+      organisation: doc.organisation,
+      aboutUs: doc.aboutUs,
+      isVerified: doc.isVerified,
+      isBlocked: doc.isBlocked,
+      createdAt: doc.createdAt,
+      updatedAt: doc.updatedAt,
+    };
+  }
+
+  private mapToContact(doc: CompanyContactDocument): CompanyContact {
+    return {
+      id: String(doc._id),
+      companyId: doc.companyId,
+      email: doc.email,
+      phone: doc.phone,
+      twitterLink: doc.twitterLink,
+      facebookLink: doc.facebookLink,
+      linkedin: doc.linkedin,
+      createdAt: doc.createdAt,
+      updatedAt: doc.updatedAt,
+    };
+  }
+
+  private mapToLocation(doc: CompanyLocationDocument): CompanyLocation {
+    return {
+      id: String(doc._id),
+      companyId: doc.companyId,
+      location: doc.location,
+      officeName: doc.officeName,
+      address: doc.address,
+      isHeadquarters: doc.isHeadquarters,
+      createdAt: doc.createdAt,
+      updatedAt: doc.updatedAt,
+    };
+  }
+
+  private mapToVerification(doc: CompanyVerificationDocument): CompanyVerification {
     return {
       id: String(doc._id),
       companyId: doc.companyId,
       taxId: doc.taxId,
-      bsLicenseUrl: doc.bsLicenseUrl,
+      businessLicenseUrl: doc.businessLicenseUrl || '',
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
     };
